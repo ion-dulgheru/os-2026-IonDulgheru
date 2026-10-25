@@ -17,7 +17,7 @@ main(int argc, char *argv[])
     exit(1);
   }
   if(pid == 0){
-    // copil: închide capetele nefolosite
+    // child: close the unused ends
     close(p2c[1]);
     close(c2p[0]);
     if(read(p2c[0], &b, 1) != 1)
@@ -28,7 +28,7 @@ main(int argc, char *argv[])
     close(c2p[1]);
     exit(0);
   }
-  // părinte
+  // parent
   close(p2c[0]);
   close(c2p[1]);
   write(p2c[1], &b, 1);

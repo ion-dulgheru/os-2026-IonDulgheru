@@ -29,17 +29,17 @@ stage(int in)
     exit(1);
   }
   if(pid == 0){
-    close(fd[1]);     // copilul doar citește
-    close(in);        // nu-i trebuie intrarea părintelui
+    close(fd[1]);     // the child only reads
+    close(in);        // the parent's input is not needed
     stage(fd[0]);
   }
-  close(fd[0]);       // părintele doar scrie
+  close(fd[0]);       // the parent only writes
   while(read(in, &n, sizeof(n)) == sizeof(n)){
     if(n % p != 0)
       write(fd[1], &n, sizeof(n));
   }
   close(in);
-  close(fd[1]);       // semnalează EOF următoarei etape
+  close(fd[1]);       // signals EOF to the next stage
   wait(0);
   exit(0);
 }
