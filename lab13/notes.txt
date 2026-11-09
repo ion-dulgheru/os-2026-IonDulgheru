@@ -1,0 +1,22 @@
+Lab 13 - Semaphores in Your Own Kernel (xv6) - Observe
+
+1. Without the lock the letters mix because one line costs 31 system calls: 30 letters and the new line,
+   each one written with its own write(). The two processes run at the same time on different CPUs, so
+   the kernel can execute a write of A, then a write of b, and so on: a line is not one indivisible
+   operation. The letters of the two processes alternate between the calls.
+
+2. The two lines in lines() of mix.c are
+       if (uselock) sem_down(3);      (before the loop that writes the letters)
+       if (uselock) sem_up(3);        (after that loop)
+   Semaphore 3 starts at 1, so only one process can be between them: the whole line is a critical section.
+
+3. sem_up calls wakeup(s), which wakes ALL the processes that sleep on s, but it gave only one unit.
+   The first process that runs takes it (the value becomes 0 again) and the others wake up and find 0.
+   They must go back to sleep, so the value is checked again in a loop (while), not once (if). The same
+   happens if the process is woken by something else, for example by kill.
+
+4. If sem_down slept while holding the spinlock, sem_up (called by another process) would try to acquire
+   the same spinlock to increase the value and would spin forever, because the sleeper never releases it:
+   the sleeper waits for sem_up, and sem_up waits for the lock. This is a deadlock; besides, a process
+   that sleeps while holding a spinlock (interrupts are off while it is held) is forbidden in xv6, and
+   the kernel panics. That is why the lock is released BEFORE sleep().
