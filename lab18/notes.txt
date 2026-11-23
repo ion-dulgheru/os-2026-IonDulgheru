@@ -1,0 +1,31 @@
+Lab 18 - A User-Level Thread Switch (xv6) - Observe
+
+What exactly does thread_switch save and load? Why is ra the register that makes execution continue in
+the other thread?
+
+thread_switch(old, new) saves into the struct context pointed to by a0 (old) and loads from the one pointed
+to by a1 (new) exactly the 14 callee-saved registers: ra, sp and s0..s11 (14 x 8 bytes, offsets 0..104).
+Nothing else is needed: the caller-saved registers (a0-a7, t0-t6) are, by the calling convention, already
+dead or saved by the C compiler around the call to thread_switch, because for the caller it looks like an
+ordinary function call. The program counter is not saved explicitly either.
+
+The loads change sp, so after them the CPU runs on the stack of the next thread, and the s registers
+are those of the next thread. The last instruction is `ret`, which is "jump to the address in ra". Before
+it, ra was loaded from the next thread's context, so the jump does not go back to the code that called
+thread_switch in the old thread, but to the place where the next thread stopped (the instruction after its
+own call to thread_switch, inside thread_schedule). For a new thread, thread_create put the thread function
+in ctx.ra and the top of its stack in ctx.sp, so the first switch "returns" into func on its own stack.
+So ra works as the saved program counter: whoever controls ra decides which code runs next. The old
+thread's ra, saved by the first half, is what lets a later switch resume it right after its thread_switch call.
+
+Extra - the "Trap" of the assignment, tested (the correct uthread.c was restored afterwards)
+
+- Without t->ctx.sp (sp stays 0): uthread prints
+      usertrap(): unexpected scause 0xf pid=3
+      sepc=0x114 stval=0xfffffffffffffff8
+  scause 0xf is a store page fault at address 0xfffffffffffffff8 = 0 - 8: the new thread runs the
+  function prologue, which saves registers at sp-8, and sp is 0, so there is no stack.
+- Without t->ctx.ra (ra stays 0): no thread line is printed and the program hangs (I had to stop QEMU).
+  The first thread_switch executes ret with ra = 0, so it jumps to address 0, not to the thread function;
+  the thread function is never started.
+This confirms that both fields are needed: ra says where the new thread starts, sp says where its stack is.
